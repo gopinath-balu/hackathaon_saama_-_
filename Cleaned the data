@@ -1,0 +1,64 @@
+import numpy as np 
+import pandas as pd 
+
+import json
+
+import requests
+
+## Converting the API request for AE into Dataframe
+
+ae_subj_data= requests.get("https://pyhack-dot-pharmanlp-177020.uc.r.appspot.com/api/1/StudyHack/ae/subject/list")
+
+ae_subj_df = pd.json_normalize(ae_subj_data.json(), record_path=['data'],meta =['status','request_id'])
+
+ae_subj_df
+
+
+
+### Fetching the AE data by looping subject ids'
+
+ae_ls = ae_subj_df.loc[:,0].tolist()[0:10]
+
+
+df = []
+for i in ae_ls: 
+    if i is not None: 
+        temp =requests.get("https://pyhack-dot-pharmanlp-177020.uc.r.appspot.com/api/1/StudyHack/ae/subject/"+str(i)+"/list")
+        df.append(temp.json())
+    else:
+        continue
+        
+    
+final_ae_df = pd.json_normalize(df, record_path=['data'],meta =['status','request_id'])
+
+
+### Fetching the CM data by looping subject ids'
+
+cm_df = []
+for i in ae_ls: 
+    if i is not None: 
+        temp =requests.get("https://pyhack-dot-pharmanlp-177020.uc.r.appspot.com/api/1/StudyHack/cm/subject/"+str(i)+"/list")
+        cm_df.append(temp.json())
+    else:
+        continue
+    
+final_cm_df = pd.json_normalize(cm_df, record_path=['data'],meta =['status','request_id'])
+
+
+
+#### Converting object format into float - final_cm_df['cmaeno']
+
+final_cm_df['cmaeno'] = pd.to_numeric(final_cm_df['cmaeno'],errors= 'coerce').fillna(0,downcast= 'infer')
+
+### Combining both AE and CM to find type errors
+
+
+final_df = pd.merge(final_cm_df, final_ae_df ,how = 'inner' ,right_on = ['subjectid','aespid'], left_on = ['subjectid','cmaeno'] )
+
+
+
+
+
+#Removed the Adverse events who never gets into medication using the above join functions
+
+
